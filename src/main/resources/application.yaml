@@ -11,3 +11,10 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: notification-group-1
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.LongDeserializer
+      value-deserializer: com.andrbezr2016.products.kafka.ProductNotificationDeserializer

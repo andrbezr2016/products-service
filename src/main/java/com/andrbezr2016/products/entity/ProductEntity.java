@@ -33,7 +33,7 @@ public class ProductEntity {
     private OffsetDateTime endDate;
     @Column(name = "description")
     private String description;
-    @Column(name = "tariff", unique = true)
+    @Column(name = "tariff")
     private UUID tariff;
     @Column(name = "tariff_version")
     private Long tariffVersion;

@@ -5,25 +5,26 @@ CREATE TABLE IF NOT EXISTS products (
     start_date timestamptz,
     end_date timestamptz,
     description text,
-    tariff uuid UNIQUE,
+    tariff uuid,
     tariff_version bigint,
     author uuid,
     version bigint NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS products_AUD (
-    id uuid PRIMARY KEY,
+    id uuid,
     name varchar,
     type varchar,
     start_date timestamptz,
     end_date timestamptz,
     description text,
-    tariff uuid UNIQUE,
+    tariff uuid,
     tariff_version bigint,
     author uuid,
     version bigint NOT NULL DEFAULT 0,
     rev bigint NOT NULL,
-    revtype smallint
+    revtype smallint,
+    PRIMARY KEY (id, rev)
 );
 
 CREATE TABLE IF NOT EXISTS revinfo (
