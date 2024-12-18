@@ -1,0 +1,13 @@
+server:
+  port: 8081
+spring:
+  name: products-service
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${POSTGRES_PATH:jdbc:postgresql://localhost:5555/products}
+    username: ${POSTGRES_USERNAME:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
