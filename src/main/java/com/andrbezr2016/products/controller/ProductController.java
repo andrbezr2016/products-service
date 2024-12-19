@@ -1,6 +1,7 @@
 package com.andrbezr2016.products.controller;
 
 import com.andrbezr2016.products.dto.Product;
+import com.andrbezr2016.products.dto.ProductNotification;
 import com.andrbezr2016.products.dto.ProductRequest;
 import com.andrbezr2016.products.service.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -53,5 +54,11 @@ public class ProductController {
     public Product rollBackVersion(@PathVariable("id") UUID id) {
         log.info("Roll back product with id: {}", id);
         return productService.rollBackVersion(id);
+    }
+
+    @PostMapping("/syncTariff")
+    public void syncTariff(@RequestBody ProductNotification productNotification) {
+        log.info("Sync tariff for product with id: {}", productNotification.getProduct());
+        productService.syncTariff(productNotification);
     }
 }
