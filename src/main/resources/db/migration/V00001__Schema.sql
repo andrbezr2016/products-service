@@ -9,5 +9,13 @@ CREATE TABLE IF NOT EXISTS products (
     tariff_version bigint,
     author uuid,
     version bigint,
+    deleted boolean,
     PRIMARY KEY (id, version)
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id bigserial PRIMARY KEY,
+    tariff uuid NOT NULL,
+    tariff_version bigint NOT NULL,
+    processed_date timestamptz
 );

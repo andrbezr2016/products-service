@@ -11,3 +11,6 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+products-service:
+  client:
+    tariffs-service-url: http://localhost:8082
