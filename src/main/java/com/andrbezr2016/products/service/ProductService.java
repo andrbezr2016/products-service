@@ -42,6 +42,7 @@ public class ProductService {
     public Product createProduct(ProductRequest productRequest) {
         ProductEntity productEntity = productMapper.toEntity(productRequest);
         productEntity.setStartDate(OffsetDateTime.now());
+        productEntity.setVersion(0L);
         productEntity = productRepository.save(productEntity);
         return productMapper.toDto(productEntity);
     }

@@ -8,6 +8,6 @@ CREATE TABLE IF NOT EXISTS products (
     tariff uuid,
     tariff_version bigint,
     author uuid,
-    version bigint DEFAULT 0,
+    version bigint,
     PRIMARY KEY (id, version)
 );
