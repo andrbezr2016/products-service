@@ -21,6 +21,7 @@ public class Product {
     private OffsetDateTime endDate;
     private String description;
     private UUID tariff;
+    private Long tariffVersion;
     private UUID author;
     private Long version;
 

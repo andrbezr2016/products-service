@@ -76,7 +76,7 @@ public class ProductService {
             productEntity.setEndDate(now);
             productEntity = productRepository.save(productEntity);
             productEntity.setTariff(productNotification.getTariff());
-            productEntity.setTariffVersion(productNotification.getVersion());
+            productEntity.setTariffVersion(productNotification.getTariffVersion());
             productEntity.setStartDate(now);
             productEntity.setEndDate(null);
             productEntity.setVersion(productEntity.getVersion() + 1);
@@ -87,6 +87,6 @@ public class ProductService {
     private boolean syncNeeded(ProductEntity productEntity, ProductNotification productNotification) {
         return productEntity != null
                 && (!Objects.equals(productEntity.getTariff(), productNotification.getTariff())
-                || !Objects.equals(productEntity.getTariffVersion(), productNotification.getVersion()));
+                || !Objects.equals(productEntity.getTariffVersion(), productNotification.getTariffVersion()));
     }
 }

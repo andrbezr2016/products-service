@@ -14,6 +14,6 @@ import java.util.UUID;
 public class ProductNotification {
 
     UUID tariff;
-    Long version;
+    Long tariffVersion;
     UUID product;
 }

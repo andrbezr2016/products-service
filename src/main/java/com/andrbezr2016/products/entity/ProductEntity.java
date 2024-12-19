@@ -14,7 +14,7 @@ import java.util.UUID;
 @Getter
 @Entity
 @IdClass(ProductId.class)
-@Table(name = "products_audit")
+@Table(name = "products")
 public class ProductEntity {
 
     @Id
