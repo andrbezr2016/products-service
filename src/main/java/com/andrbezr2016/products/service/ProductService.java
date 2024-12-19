@@ -23,6 +23,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final ProductMapper productMapper;
 
+    @Transactional
     public Product getCurrentVersion(UUID id) {
         ProductEntity productEntity = productRepository.findCurrentVersionById(id).orElse(null);
         return productMapper.toDto(productEntity);
@@ -41,6 +42,7 @@ public class ProductService {
     @Transactional
     public Product createProduct(ProductRequest productRequest) {
         ProductEntity productEntity = productMapper.toEntity(productRequest);
+        productEntity.setId(UUID.randomUUID());
         productEntity.setStartDate(OffsetDateTime.now());
         productEntity.setVersion(0L);
         productEntity = productRepository.save(productEntity);
@@ -76,12 +78,14 @@ public class ProductService {
             OffsetDateTime now = OffsetDateTime.now();
             productEntity.setEndDate(now);
             productEntity = productRepository.save(productEntity);
-            productEntity.setTariff(productNotification.getTariff());
-            productEntity.setTariffVersion(productNotification.getTariffVersion());
-            productEntity.setStartDate(now);
-            productEntity.setEndDate(null);
-            productEntity.setVersion(productEntity.getVersion() + 1);
-            productRepository.save(productEntity);
+
+            ProductEntity newProductEntity = productMapper.copyEntity(productEntity);
+            newProductEntity.setTariff(productNotification.getTariff());
+            newProductEntity.setTariffVersion(productNotification.getTariffVersion());
+            newProductEntity.setStartDate(now);
+            newProductEntity.setEndDate(null);
+            newProductEntity.setVersion(newProductEntity.getVersion() + 1);
+            productRepository.save(newProductEntity);
         }
     }
 
