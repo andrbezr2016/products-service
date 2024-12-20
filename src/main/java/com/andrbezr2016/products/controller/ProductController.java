@@ -57,8 +57,8 @@ public class ProductController {
     }
 
     @PostMapping("/syncTariff")
-    public void syncTariff(@RequestBody ProductNotification productNotification) {
-        log.info("Sync tariff for product with id: {}", productNotification.getProduct());
-        productService.syncTariff(productNotification);
+    public void syncTariff(@RequestBody Collection<ProductNotification> productNotificationCollection) {
+        log.info("Sync tariff for products with ids: {}", productNotificationCollection.stream().map(ProductNotification::getProduct).toList());
+        productService.syncTariff(productNotificationCollection);
     }
 }

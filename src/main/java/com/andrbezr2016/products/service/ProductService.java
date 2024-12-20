@@ -8,13 +8,12 @@ import com.andrbezr2016.products.entity.ProductId;
 import com.andrbezr2016.products.mapper.ProductMapper;
 import com.andrbezr2016.products.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.Collection;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 @RequiredArgsConstructor
 @Service
@@ -54,14 +53,13 @@ public class ProductService {
         if (isActiveProduct(productEntity)) {
             OffsetDateTime now = OffsetDateTime.now();
             productEntity.setEndDate(now);
-            productRepository.save(productEntity);
 
             ProductEntity newProductEntity = productMapper.copyEntity(productEntity);
             newProductEntity.setStartDate(now);
             newProductEntity.setEndDate(null);
             newProductEntity.setVersion(newProductEntity.getVersion() + 1);
             newProductEntity.setDeleted(true);
-            productRepository.save(newProductEntity);
+            productRepository.saveAll(List.of(productEntity, newProductEntity));
         }
     }
 
@@ -86,20 +84,26 @@ public class ProductService {
     }
 
     @Transactional
-    public void syncTariff(ProductNotification productNotification) {
-        ProductEntity productEntity = productRepository.findCurrentVersionById(productNotification.getProduct()).orElse(null);
-        if (syncNeeded(productEntity, productNotification)) {
-            OffsetDateTime now = OffsetDateTime.now();
-            productEntity.setEndDate(now);
-            productEntity = productRepository.save(productEntity);
+    public void syncTariff(Collection<ProductNotification> productNotificationCollection) {
+        if (CollectionUtils.isNotEmpty(productNotificationCollection)) {
+            List<ProductEntity> productEntityList = new ArrayList<>();
+            for (ProductNotification productNotification : productNotificationCollection) {
+                ProductEntity productEntity = productRepository.findCurrentVersionById(productNotification.getProduct()).orElse(null);
+                if (syncNeeded(productEntity, productNotification)) {
+                    OffsetDateTime now = OffsetDateTime.now();
+                    productEntity.setEndDate(now);
+                    productEntityList.add(productEntity);
 
-            ProductEntity newProductEntity = productMapper.copyEntity(productEntity);
-            newProductEntity.setTariff(productNotification.getTariff());
-            newProductEntity.setTariffVersion(productNotification.getTariffVersion());
-            newProductEntity.setStartDate(now);
-            newProductEntity.setEndDate(null);
-            newProductEntity.setVersion(newProductEntity.getVersion() + 1);
-            productRepository.save(newProductEntity);
+                    ProductEntity newProductEntity = productMapper.copyEntity(productEntity);
+                    newProductEntity.setTariff(productNotification.getTariff());
+                    newProductEntity.setTariffVersion(productNotification.getTariffVersion());
+                    newProductEntity.setStartDate(now);
+                    newProductEntity.setEndDate(null);
+                    newProductEntity.setVersion(newProductEntity.getVersion() + 1);
+                    productEntityList.add(newProductEntity);
+                }
+            }
+            productRepository.saveAll(productEntityList);
         }
     }
 
