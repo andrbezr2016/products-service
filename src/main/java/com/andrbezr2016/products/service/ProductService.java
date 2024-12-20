@@ -5,10 +5,8 @@ import com.andrbezr2016.products.dto.ProductNotification;
 import com.andrbezr2016.products.dto.ProductRequest;
 import com.andrbezr2016.products.entity.ProductEntity;
 import com.andrbezr2016.products.entity.ProductId;
-import com.andrbezr2016.products.entity.TariffNotificationEntity;
 import com.andrbezr2016.products.mapper.ProductMapper;
 import com.andrbezr2016.products.repository.ProductRepository;
-import com.andrbezr2016.products.repository.TariffNotificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +21,6 @@ import java.util.UUID;
 public class ProductService {
 
     private final ProductRepository productRepository;
-    private final TariffNotificationRepository tariffNotificationRepository;
     private final ProductMapper productMapper;
 
     public Product getCurrentVersion(UUID id) {
@@ -33,7 +30,7 @@ public class ProductService {
 
     public Collection<Product> getPreviousVersions(UUID id) {
         Collection<ProductEntity> productEntityList = productRepository.findAllPreviousVersionsById(id);
-        return productMapper.toDtoCollection(productEntityList.stream().filter(productEntity -> !productEntity.isDeleted()).toList());
+        return productMapper.toDtoCollection(productEntityList);
     }
 
     public Product getVersionForDate(UUID id, OffsetDateTime date) {
@@ -54,7 +51,7 @@ public class ProductService {
     @Transactional
     public void deleteProduct(UUID id) {
         ProductEntity productEntity = productRepository.findCurrentVersionById(id).orElse(null);
-        if (productEntity != null) {
+        if (isActiveProduct(productEntity)) {
             OffsetDateTime now = OffsetDateTime.now();
             productEntity.setEndDate(now);
             productRepository.save(productEntity);
@@ -65,31 +62,27 @@ public class ProductService {
             newProductEntity.setVersion(newProductEntity.getVersion() + 1);
             newProductEntity.setDeleted(true);
             productRepository.save(newProductEntity);
-
-            fillNotification(newProductEntity);
         }
     }
 
     @Transactional
     public Product rollBackVersion(UUID id) {
         ProductEntity productEntity = productRepository.findCurrentVersionById(id).orElse(null);
-        ProductEntity newProductEntity = productRepository.findPreviousVersionById(id).orElse(null);
-        if (productEntity != null) {
+        if (productEntity != null && productEntity.getVersion() > 0) {
             ProductId productId = new ProductId();
             productId.setId(productEntity.getId());
             productId.setVersion(productEntity.getVersion());
             productRepository.deleteById(productId);
 
+            ProductEntity newProductEntity = productRepository.findCurrentVersionById(id).orElse(null);
             if (newProductEntity != null) {
                 newProductEntity.setEndDate(null);
                 productRepository.save(newProductEntity);
             }
 
-            if (newProductEntity == null || !Objects.equals(productEntity.getTariffVersion(), newProductEntity.getTariffVersion())) {
-                fillNotification(productEntity);
-            }
+            return productMapper.toDto(newProductEntity);
         }
-        return productMapper.toDto(newProductEntity);
+        return productMapper.toDto(productEntity);
     }
 
     @Transactional
@@ -116,12 +109,7 @@ public class ProductService {
                 || !Objects.equals(productEntity.getTariffVersion(), productNotification.getTariffVersion()));
     }
 
-    private void fillNotification(ProductEntity productEntity) {
-        if (productEntity != null && productEntity.getTariff() != null) {
-            TariffNotificationEntity tariffNotificationEntity = new TariffNotificationEntity();
-            tariffNotificationEntity.setTariff(productEntity.getId());
-            tariffNotificationEntity.setTariffVersion(productEntity.getTariffVersion());
-            tariffNotificationRepository.save(tariffNotificationEntity);
-        }
+    private boolean isActiveProduct(ProductEntity productEntity) {
+        return productEntity != null && !productEntity.isDeleted();
     }
 }

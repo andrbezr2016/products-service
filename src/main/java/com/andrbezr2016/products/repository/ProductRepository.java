@@ -22,9 +22,6 @@ public interface ProductRepository extends JpaRepository<ProductEntity, ProductI
     @Query("FROM ProductEntity WHERE id = :id ORDER BY version DESC LIMIT 1")
     Optional<ProductEntity> findCurrentVersionById(UUID id);
 
-    @Query("FROM ProductEntity WHERE id = :id ORDER BY version DESC LIMIT 1 OFFSET 1")
-    Optional<ProductEntity> findPreviousVersionById(UUID id);
-
     @Query("FROM ProductEntity WHERE id = :id ORDER BY version DESC OFFSET 1")
     List<ProductEntity> findAllPreviousVersionsById(UUID id);
 
