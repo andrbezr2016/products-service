@@ -3,6 +3,7 @@ package com.andrbezr2016.products.service;
 import com.andrbezr2016.products.dto.Product;
 import com.andrbezr2016.products.dto.ProductNotification;
 import com.andrbezr2016.products.dto.ProductRequest;
+import com.andrbezr2016.products.entity.ProductAuditEntity;
 import com.andrbezr2016.products.entity.ProductAuditId;
 import com.andrbezr2016.products.entity.ProductEntity;
 import com.andrbezr2016.products.mapper.ProductMapper;
@@ -79,12 +80,8 @@ public class ProductService {
                 productRepository.deleteById(id);
                 revisionInfoRepository.deleteById(revision.getRequiredRevisionNumber());
                 revisionInfoRepository.deleteById(prevRevision.getRequiredRevisionNumber());
-                ProductAuditId productAuditId = new ProductAuditId();
-                productAuditId.setId(revision.getEntity().getId());
-                productAuditId.setRev(revision.getRequiredRevisionNumber());
-                productAuditRepository.deleteById(productAuditId);
-                productAuditId.setRev(prevRevision.getRequiredRevisionNumber());
-                productAuditRepository.deleteById(productAuditId);
+                productAuditRepository.deleteById(new ProductAuditId(revision.getEntity().getId(), revision.getRequiredRevisionNumber()));
+                productAuditRepository.deleteById(new ProductAuditId(revision.getEntity().getId(), prevRevision.getRequiredRevisionNumber()));
                 productRepository.save(prevProductEntity);
                 return productMapper.toDto(prevProductEntity);
             }
@@ -100,10 +97,16 @@ public class ProductService {
                 Revision<Long, ProductEntity> revision = productRepository.findLastChangeRevision(productNotification.getProduct()).orElse(null);
                 ProductEntity productEntity = revision != null ? revision.getEntity() : null;
                 if (syncNeeded(productEntity, productNotification)) {
+                    LocalDateTime currentDate = localDateTimeService.getCurrentDate();
+                    ProductAuditEntity productAuditEntity = productAuditRepository.findById(new ProductAuditId(revision.getEntity().getId(), revision.getRequiredRevisionNumber())).orElse(null);
+                    if (productAuditEntity != null) {
+                        productAuditEntity.setEndDate(currentDate);
+                        productAuditRepository.save(productAuditEntity);
+                    }
                     productEntity.setTariff(productNotification.getTariff());
                     productEntity.setTariffVersion(productNotification.getTariffVersion());
                     productEntity.setVersion(productEntity.getVersion() + 1);
-                    productEntity.setStartDate(localDateTimeService.getCurrentDate());
+                    productEntity.setStartDate(currentDate);
                     productEntityList.add(productEntity);
                 }
             }
