@@ -5,8 +5,8 @@ import lombok.Data;
 import java.util.UUID;
 
 @Data
-public class ProductId {
+public class ProductAuditId {
 
     private UUID id;
-    private Long version;
+    private Long rev;
 }

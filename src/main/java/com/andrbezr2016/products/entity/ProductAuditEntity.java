@@ -5,7 +5,6 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.envers.Audited;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -13,10 +12,10 @@ import java.util.UUID;
 @NoArgsConstructor
 @Setter
 @Getter
-@Audited
+@IdClass(ProductAuditId.class)
 @Entity
-@Table(name = "products")
-public class ProductEntity {
+@Table(name = "products_aud")
+public class ProductAuditEntity {
 
     @Id
     @Column(name = "id", nullable = false)
@@ -40,4 +39,9 @@ public class ProductEntity {
     private UUID author;
     @Column(name = "version", nullable = false)
     private Long version;
+    @Id
+    @Column(name = "rev", nullable = false)
+    private Long rev;
+    @Column(name = "revtype", nullable = false)
+    private Short revType;
 }
