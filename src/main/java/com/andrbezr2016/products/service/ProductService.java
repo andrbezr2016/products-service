@@ -13,6 +13,7 @@ import com.andrbezr2016.products.repository.RevisionInfoRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.data.history.Revision;
+import org.springframework.data.history.RevisionMetadata;
 import org.springframework.data.history.Revisions;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,15 +58,22 @@ public class ProductService {
 
     @Transactional
     public void deleteProduct(UUID id) {
-        ProductEntity productEntity = findCurrentVersion(id);
-        if (productEntity != null) {
-            productRepository.deleteById(id);
+        Revision<Long, ProductEntity> revision = findRevision(id);
+        if (isActiveRevision(revision)) {
+            ProductAuditId productAuditId = new ProductAuditId(revision.getEntity().getId(), revision.getRequiredRevisionNumber());
+            ProductAuditEntity productAuditEntity = productAuditRepository.findById(productAuditId).orElse(null);
+            if (productAuditEntity != null) {
+                productAuditEntity.setEndDate(localDateTimeService.getCurrentDate());
+                productAuditRepository.save(productAuditEntity);
+
+                productRepository.deleteById(id);
+            }
         }
     }
 
     @Transactional
     public Product rollBackVersion(UUID id) {
-        Revision<Long, ProductEntity> revision = productRepository.findLastChangeRevision(id).orElse(null);
+        Revision<Long, ProductEntity> revision = findRevision(id);
         ProductEntity productEntity = revision != null ? revision.getEntity() : null;
         if (productEntity != null && productEntity.getVersion() > 0) {
             Revisions<Long, ProductEntity> revisions = productRepository.findRevisions(id);
@@ -91,7 +99,7 @@ public class ProductService {
             List<ProductEntity> productEntityList = new ArrayList<>();
             for (ProductNotification productNotification : productNotificationCollection) {
                 Revision<Long, ProductEntity> revision = productRepository.findLastChangeRevision(productNotification.getProduct()).orElse(null);
-                ProductEntity productEntity = revision != null ? revision.getEntity() : null;
+                ProductEntity productEntity = isActiveRevision(revision) ? revision.getEntity() : null;
                 if (syncNeeded(productEntity, productNotification)) {
                     ProductAuditEntity productAuditEntity = productAuditRepository.findById(new ProductAuditId(revision.getEntity().getId(), revision.getRequiredRevisionNumber())).orElse(null);
                     if (productAuditEntity != null) {
@@ -112,8 +120,12 @@ public class ProductService {
     }
 
     private ProductEntity findCurrentVersion(UUID id) {
-        Revision<Long, ProductEntity> revision = productRepository.findLastChangeRevision(id).orElse(null);
-        return revision != null ? revision.getEntity() : null;
+        Revision<Long, ProductEntity> revision = findRevision(id);
+        return isActiveRevision(revision) ? revision.getEntity() : null;
+    }
+
+    private Revision<Long, ProductEntity> findRevision(UUID id) {
+        return productRepository.findLastChangeRevision(id).orElse(null);
     }
 
     private Collection<ProductEntity> findPreviousVersions(UUID id) {
@@ -124,7 +136,11 @@ public class ProductService {
 
     private ProductEntity findVersionForDate(UUID id, LocalDateTime date) {
         Revision<Long, ProductEntity> revision = productRepository.findRevisions(id).stream().filter(r -> validDate(date, r.getEntity().getStartDate(), r.getEntity().getEndDate())).findFirst().orElse(null);
-        return revision != null ? revision.getEntity() : null;
+        return isActiveRevision(revision) ? revision.getEntity() : null;
+    }
+
+    private boolean isActiveRevision(Revision<Long, ProductEntity> revision) {
+        return revision != null && revision.getMetadata().getRevisionType() != RevisionMetadata.RevisionType.DELETE;
     }
 
     private boolean syncNeeded(ProductEntity productEntity, ProductNotification productNotification) {
