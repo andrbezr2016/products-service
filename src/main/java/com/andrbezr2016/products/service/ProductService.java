@@ -24,25 +24,25 @@ public class ProductService {
     private final CurrentDateService currentDateService;
 
     public Product getCurrentVersion(UUID id) {
-        ProductEntity productEntity = productRepository.findCurrentVersionById(id).orElse(null);
-        return productMapper.toDto(productEntity != null && productEntity.isDeleted() ? null : productEntity);
+        ProductEntity productEntity = findCurrentVersion(id);
+        return productMapper.toDto(productEntity);
     }
 
     public Collection<Product> getPreviousVersions(UUID id) {
-        Collection<ProductEntity> productEntityList = productRepository.findAllPreviousVersionsById(id);
+        Collection<ProductEntity> productEntityList = findPreviousVersions(id);
         return productMapper.toDtoCollection(productEntityList);
     }
 
     public Product getVersionForDate(UUID id, LocalDateTime date) {
-        ProductEntity productEntity = productRepository.findVersionForDateById(id, date).orElse(null);
-        return productMapper.toDto(productEntity != null && productEntity.isDeleted() ? null : productEntity);
+        ProductEntity productEntity = findVersionForDate(id, date);
+        return productMapper.toDto(productEntity);
     }
 
     @Transactional
     public Product createProduct(ProductRequest productRequest) {
         ProductEntity productEntity = productMapper.toEntity(productRequest);
         productEntity.setId(UUID.randomUUID());
-        productEntity.setStartDate(LocalDateTime.now());
+        productEntity.setStartDate(currentDateService.getCurrentDate());
         productEntity.setVersion(0L);
         productEntity = productRepository.save(productEntity);
         return productMapper.toDto(productEntity);
@@ -50,9 +50,9 @@ public class ProductService {
 
     @Transactional
     public void deleteProduct(UUID id) {
-        ProductEntity productEntity = productRepository.findCurrentVersionById(id).orElse(null);
+        ProductEntity productEntity = findCurrentVersion(id);
         if (isActiveProduct(productEntity)) {
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = currentDateService.getCurrentDate();
             productEntity.setEndDate(now);
 
             ProductEntity newProductEntity = productMapper.copyEntity(productEntity);
@@ -66,12 +66,12 @@ public class ProductService {
 
     @Transactional
     public Product rollBackVersion(UUID id) {
-        ProductEntity productEntity = productRepository.findCurrentVersionById(id).orElse(null);
+        ProductEntity productEntity = findCurrentVersion(id);
         if (productEntity != null && productEntity.getVersion() > 0) {
             ProductId productId = new ProductId(productEntity.getId(), productEntity.getVersion());
             productRepository.deleteById(productId);
 
-            ProductEntity newProductEntity = productRepository.findCurrentVersionById(id).orElse(null);
+            ProductEntity newProductEntity = findCurrentVersion(id);
             if (newProductEntity != null) {
                 newProductEntity.setEndDate(null);
                 productRepository.save(newProductEntity);
@@ -87,9 +87,9 @@ public class ProductService {
         if (CollectionUtils.isNotEmpty(productNotificationCollection)) {
             List<ProductEntity> productEntityList = new ArrayList<>();
             for (ProductNotification productNotification : productNotificationCollection) {
-                ProductEntity productEntity = productRepository.findCurrentVersionById(productNotification.getProduct()).orElse(null);
+                ProductEntity productEntity = findCurrentVersion(productNotification.getProduct());
                 if (syncNeeded(productEntity, productNotification)) {
-                    LocalDateTime now = LocalDateTime.now();
+                    LocalDateTime now = currentDateService.getCurrentDate();
                     productEntity.setEndDate(now);
                     productEntityList.add(productEntity);
 
@@ -104,6 +104,20 @@ public class ProductService {
             }
             productRepository.saveAll(productEntityList);
         }
+    }
+
+    private ProductEntity findCurrentVersion(UUID id) {
+        ProductEntity productEntity = productRepository.findCurrentVersionById(id).orElse(null);
+        return productEntity != null && productEntity.isDeleted() ? null : productEntity;
+    }
+
+    private Collection<ProductEntity> findPreviousVersions(UUID id) {
+        return productRepository.findAllPreviousVersionsById(id);
+    }
+
+    private ProductEntity findVersionForDate(UUID id, LocalDateTime date) {
+        ProductEntity productEntity = productRepository.findVersionForDateById(id, date).orElse(null);
+        return productEntity != null && productEntity.isDeleted() ? null : productEntity;
     }
 
     private boolean syncNeeded(ProductEntity productEntity, ProductNotification productNotification) {
