@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,5 +21,5 @@ public interface ProductRepository extends JpaRepository<ProductEntity, ProductI
     List<ProductEntity> findAllPreviousVersionsById(UUID id);
 
     @Query("FROM ProductEntity WHERE id = :id AND ((:date BETWEEN startDate AND endDate) OR (:date > startDate AND endDate IS NULL))")
-    Optional<ProductEntity> findVersionForDateById(UUID id, OffsetDateTime date);
+    Optional<ProductEntity> findVersionForDateById(UUID id, LocalDateTime date);
 }

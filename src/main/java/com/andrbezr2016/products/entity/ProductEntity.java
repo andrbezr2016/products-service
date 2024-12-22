@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @NoArgsConstructor
@@ -26,9 +26,9 @@ public class ProductEntity {
     @Column(name = "type")
     private Product.ProductType type;
     @Column(name = "start_date")
-    private OffsetDateTime startDate;
+    private LocalDateTime startDate;
     @Column(name = "end_date")
-    private OffsetDateTime endDate;
+    private LocalDateTime endDate;
     @Column(name = "description")
     private String description;
     @Column(name = "tariff")

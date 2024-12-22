@@ -12,7 +12,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @RequiredArgsConstructor
@@ -21,6 +21,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final ProductMapper productMapper;
+    private final CurrentDateService currentDateService;
 
     public Product getCurrentVersion(UUID id) {
         ProductEntity productEntity = productRepository.findCurrentVersionById(id).orElse(null);
@@ -32,7 +33,7 @@ public class ProductService {
         return productMapper.toDtoCollection(productEntityList);
     }
 
-    public Product getVersionForDate(UUID id, OffsetDateTime date) {
+    public Product getVersionForDate(UUID id, LocalDateTime date) {
         ProductEntity productEntity = productRepository.findVersionForDateById(id, date).orElse(null);
         return productMapper.toDto(productEntity != null && productEntity.isDeleted() ? null : productEntity);
     }
@@ -41,7 +42,7 @@ public class ProductService {
     public Product createProduct(ProductRequest productRequest) {
         ProductEntity productEntity = productMapper.toEntity(productRequest);
         productEntity.setId(UUID.randomUUID());
-        productEntity.setStartDate(OffsetDateTime.now());
+        productEntity.setStartDate(LocalDateTime.now());
         productEntity.setVersion(0L);
         productEntity = productRepository.save(productEntity);
         return productMapper.toDto(productEntity);
@@ -51,7 +52,7 @@ public class ProductService {
     public void deleteProduct(UUID id) {
         ProductEntity productEntity = productRepository.findCurrentVersionById(id).orElse(null);
         if (isActiveProduct(productEntity)) {
-            OffsetDateTime now = OffsetDateTime.now();
+            LocalDateTime now = LocalDateTime.now();
             productEntity.setEndDate(now);
 
             ProductEntity newProductEntity = productMapper.copyEntity(productEntity);
@@ -67,9 +68,7 @@ public class ProductService {
     public Product rollBackVersion(UUID id) {
         ProductEntity productEntity = productRepository.findCurrentVersionById(id).orElse(null);
         if (productEntity != null && productEntity.getVersion() > 0) {
-            ProductId productId = new ProductId();
-            productId.setId(productEntity.getId());
-            productId.setVersion(productEntity.getVersion());
+            ProductId productId = new ProductId(productEntity.getId(), productEntity.getVersion());
             productRepository.deleteById(productId);
 
             ProductEntity newProductEntity = productRepository.findCurrentVersionById(id).orElse(null);
@@ -90,7 +89,7 @@ public class ProductService {
             for (ProductNotification productNotification : productNotificationCollection) {
                 ProductEntity productEntity = productRepository.findCurrentVersionById(productNotification.getProduct()).orElse(null);
                 if (syncNeeded(productEntity, productNotification)) {
-                    OffsetDateTime now = OffsetDateTime.now();
+                    LocalDateTime now = LocalDateTime.now();
                     productEntity.setEndDate(now);
                     productEntityList.add(productEntity);
 
