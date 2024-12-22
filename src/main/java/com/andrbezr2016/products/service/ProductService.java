@@ -3,20 +3,16 @@ package com.andrbezr2016.products.service;
 import com.andrbezr2016.products.dto.Product;
 import com.andrbezr2016.products.dto.ProductNotification;
 import com.andrbezr2016.products.dto.ProductRequest;
-import com.andrbezr2016.products.entity.ProductAuditId;
 import com.andrbezr2016.products.entity.ProductEntity;
+import com.andrbezr2016.products.entity.ProductId;
 import com.andrbezr2016.products.mapper.ProductMapper;
-import com.andrbezr2016.products.repository.ProductAuditRepository;
 import com.andrbezr2016.products.repository.ProductRepository;
-import com.andrbezr2016.products.repository.RevisionInfoRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
-import org.springframework.data.history.Revision;
-import org.springframework.data.history.Revisions;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.*;
 
 @RequiredArgsConstructor
@@ -24,70 +20,65 @@ import java.util.*;
 public class ProductService {
 
     private final ProductRepository productRepository;
-    private final RevisionInfoRepository revisionInfoRepository;
-    private final ProductAuditRepository productAuditRepository;
     private final ProductMapper productMapper;
-    private final LocalDateTimeService localDateTimeService;
 
     public Product getCurrentVersion(UUID id) {
-        Revision<Long, ProductEntity> revision = productRepository.findLastChangeRevision(id).orElse(null);
-        ProductEntity productEntity = revision != null ? revision.getEntity() : null;
-        return productMapper.toDto(productEntity);
+        ProductEntity productEntity = productRepository.findCurrentVersionById(id).orElse(null);
+        return productMapper.toDto(productEntity != null && productEntity.isDeleted() ? null : productEntity);
     }
 
     public Collection<Product> getPreviousVersions(UUID id) {
-        Revisions<Long, ProductEntity> revisions = productRepository.findRevisions(id);
-        Long lastVersion = revisions.getLatestRevision().getEntity().getVersion();
-        Collection<ProductEntity> productEntityList = revisions.stream().map(Revision::getEntity).filter(p -> !Objects.equals(p.getVersion(), lastVersion)).toList();
+        Collection<ProductEntity> productEntityList = productRepository.findAllPreviousVersionsById(id);
         return productMapper.toDtoCollection(productEntityList);
     }
 
-    public Product getVersionForDate(UUID id, LocalDateTime date) {
-        Revision<Long, ProductEntity> revision = productRepository.findRevisions(id).stream().filter(r -> validDate(date, r.getEntity().getStartDate(), r.getEntity().getEndDate())).findFirst().orElse(null);
-        return productMapper.toDto(revision != null ? revision.getEntity() : null);
+    public Product getVersionForDate(UUID id, OffsetDateTime date) {
+        ProductEntity productEntity = productRepository.findVersionForDateById(id, date).orElse(null);
+        return productMapper.toDto(productEntity != null && productEntity.isDeleted() ? null : productEntity);
     }
 
     @Transactional
     public Product createProduct(ProductRequest productRequest) {
         ProductEntity productEntity = productMapper.toEntity(productRequest);
         productEntity.setId(UUID.randomUUID());
+        productEntity.setStartDate(OffsetDateTime.now());
         productEntity.setVersion(0L);
-        productEntity.setStartDate(localDateTimeService.getCurrentDate());
         productEntity = productRepository.save(productEntity);
         return productMapper.toDto(productEntity);
     }
 
     @Transactional
     public void deleteProduct(UUID id) {
-        Revision<Long, ProductEntity> revision = productRepository.findLastChangeRevision(id).orElse(null);
-        ProductEntity productEntity = revision != null ? revision.getEntity() : null;
-        if (productEntity != null) {
-            productRepository.deleteById(id);
+        ProductEntity productEntity = productRepository.findCurrentVersionById(id).orElse(null);
+        if (isActiveProduct(productEntity)) {
+            OffsetDateTime now = OffsetDateTime.now();
+            productEntity.setEndDate(now);
+
+            ProductEntity newProductEntity = productMapper.copyEntity(productEntity);
+            newProductEntity.setStartDate(now);
+            newProductEntity.setEndDate(null);
+            newProductEntity.setVersion(newProductEntity.getVersion() + 1);
+            newProductEntity.setDeleted(true);
+            productRepository.saveAll(List.of(productEntity, newProductEntity));
         }
     }
 
     @Transactional
     public Product rollBackVersion(UUID id) {
-        Revision<Long, ProductEntity> revision = productRepository.findLastChangeRevision(id).orElse(null);
-        ProductEntity productEntity = revision != null ? revision.getEntity() : null;
+        ProductEntity productEntity = productRepository.findCurrentVersionById(id).orElse(null);
         if (productEntity != null && productEntity.getVersion() > 0) {
-            Revisions<Long, ProductEntity> revisions = productRepository.findRevisions(id);
-            Long lastVersion = revisions.getLatestRevision().getEntity().getVersion();
-            Revision<Long, ProductEntity> prevRevision = revisions.stream().filter(p -> Objects.equals(p.getEntity().getVersion(), lastVersion - 1)).findFirst().orElse(null);
-            ProductEntity prevProductEntity = prevRevision != null ? prevRevision.getEntity() : null;
-            if (prevProductEntity != null) {
-                productRepository.deleteById(id);
-                revisionInfoRepository.deleteById(revision.getRequiredRevisionNumber());
-                revisionInfoRepository.deleteById(prevRevision.getRequiredRevisionNumber());
-                ProductAuditId productAuditId = new ProductAuditId();
-                productAuditId.setId(revision.getEntity().getId());
-                productAuditId.setRev(revision.getRequiredRevisionNumber());
-                productAuditRepository.deleteById(productAuditId);
-                productAuditId.setRev(prevRevision.getRequiredRevisionNumber());
-                productAuditRepository.deleteById(productAuditId);
-                productRepository.save(prevProductEntity);
-                return productMapper.toDto(prevProductEntity);
+            ProductId productId = new ProductId();
+            productId.setId(productEntity.getId());
+            productId.setVersion(productEntity.getVersion());
+            productRepository.deleteById(productId);
+
+            ProductEntity newProductEntity = productRepository.findCurrentVersionById(id).orElse(null);
+            if (newProductEntity != null) {
+                newProductEntity.setEndDate(null);
+                productRepository.save(newProductEntity);
             }
+
+            return productMapper.toDto(newProductEntity);
         }
         return productMapper.toDto(productEntity);
     }
@@ -97,14 +88,19 @@ public class ProductService {
         if (CollectionUtils.isNotEmpty(productNotificationCollection)) {
             List<ProductEntity> productEntityList = new ArrayList<>();
             for (ProductNotification productNotification : productNotificationCollection) {
-                Revision<Long, ProductEntity> revision = productRepository.findLastChangeRevision(productNotification.getProduct()).orElse(null);
-                ProductEntity productEntity = revision != null ? revision.getEntity() : null;
+                ProductEntity productEntity = productRepository.findCurrentVersionById(productNotification.getProduct()).orElse(null);
                 if (syncNeeded(productEntity, productNotification)) {
-                    productEntity.setTariff(productNotification.getTariff());
-                    productEntity.setTariffVersion(productNotification.getTariffVersion());
-                    productEntity.setVersion(productEntity.getVersion() + 1);
-                    productEntity.setStartDate(localDateTimeService.getCurrentDate());
+                    OffsetDateTime now = OffsetDateTime.now();
+                    productEntity.setEndDate(now);
                     productEntityList.add(productEntity);
+
+                    ProductEntity newProductEntity = productMapper.copyEntity(productEntity);
+                    newProductEntity.setTariff(productNotification.getTariff());
+                    newProductEntity.setTariffVersion(productNotification.getTariffVersion());
+                    newProductEntity.setStartDate(now);
+                    newProductEntity.setEndDate(null);
+                    newProductEntity.setVersion(newProductEntity.getVersion() + 1);
+                    productEntityList.add(newProductEntity);
                 }
             }
             productRepository.saveAll(productEntityList);
@@ -117,9 +113,7 @@ public class ProductService {
                 || !Objects.equals(productEntity.getTariffVersion(), productNotification.getTariffVersion()));
     }
 
-    private boolean validDate(LocalDateTime date, LocalDateTime startDate, LocalDateTime endDate) {
-        return (startDate == null && endDate != null && date.isBefore(endDate))
-                || (startDate != null && date.isAfter(startDate) && endDate != null && date.isBefore(endDate))
-                || (startDate != null && date.isAfter(startDate) && endDate == null);
+    private boolean isActiveProduct(ProductEntity productEntity) {
+        return productEntity != null && !productEntity.isDeleted();
     }
 }
