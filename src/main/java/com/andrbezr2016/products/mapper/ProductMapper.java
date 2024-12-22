@@ -15,4 +15,6 @@ public interface ProductMapper {
     Collection<Product> toDtoCollection(Collection<ProductEntity> productEntityList);
 
     ProductEntity toEntity(ProductRequest productRequest);
+
+    ProductEntity copyEntity(ProductEntity productEntity);
 }

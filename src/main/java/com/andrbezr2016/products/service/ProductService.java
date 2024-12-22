@@ -31,18 +31,21 @@ public class ProductService {
     private final LocalDateTimeService localDateTimeService;
 
     public Product getCurrentVersion(UUID id) {
-        ProductEntity productEntity = findCurrentVersion(id);
+        Revision<Long, ProductEntity> revision = productRepository.findLastChangeRevision(id).orElse(null);
+        ProductEntity productEntity = revision != null ? revision.getEntity() : null;
         return productMapper.toDto(productEntity);
     }
 
     public Collection<Product> getPreviousVersions(UUID id) {
-        Collection<ProductEntity> productEntityCollection = findPreviousVersions(id);
-        return productMapper.toDtoCollection(productEntityCollection);
+        Revisions<Long, ProductEntity> revisions = productRepository.findRevisions(id);
+        Long lastVersion = revisions.getLatestRevision().getEntity().getVersion();
+        Collection<ProductEntity> productEntityList = revisions.stream().map(Revision::getEntity).filter(p -> !Objects.equals(p.getVersion(), lastVersion)).toList();
+        return productMapper.toDtoCollection(productEntityList);
     }
 
     public Product getVersionForDate(UUID id, LocalDateTime date) {
-        ProductEntity productEntity = findVersionForDate(id, date);
-        return productMapper.toDto(productEntity);
+        Revision<Long, ProductEntity> revision = productRepository.findRevisions(id).stream().filter(r -> validDate(date, r.getEntity().getStartDate(), r.getEntity().getEndDate())).findFirst().orElse(null);
+        return productMapper.toDto(revision != null ? revision.getEntity() : null);
     }
 
     @Transactional
@@ -57,7 +60,8 @@ public class ProductService {
 
     @Transactional
     public void deleteProduct(UUID id) {
-        ProductEntity productEntity = findCurrentVersion(id);
+        Revision<Long, ProductEntity> revision = productRepository.findLastChangeRevision(id).orElse(null);
+        ProductEntity productEntity = revision != null ? revision.getEntity() : null;
         if (productEntity != null) {
             productRepository.deleteById(id);
         }
@@ -74,10 +78,10 @@ public class ProductService {
             ProductEntity prevProductEntity = prevRevision != null ? prevRevision.getEntity() : null;
             if (prevProductEntity != null) {
                 productRepository.deleteById(id);
-                revisionInfoRepository.deleteAllById(List.of(revision.getRequiredRevisionNumber(), prevRevision.getRequiredRevisionNumber()));
-                ProductAuditId productAuditId = new ProductAuditId(revision.getEntity().getId(), revision.getRequiredRevisionNumber());
-                ProductAuditId prevProductAuditId = new ProductAuditId(revision.getEntity().getId(), prevRevision.getRequiredRevisionNumber());
-                productAuditRepository.deleteAllById(List.of(productAuditId, prevProductAuditId));
+                revisionInfoRepository.deleteById(revision.getRequiredRevisionNumber());
+                revisionInfoRepository.deleteById(prevRevision.getRequiredRevisionNumber());
+                productAuditRepository.deleteById(new ProductAuditId(revision.getEntity().getId(), revision.getRequiredRevisionNumber()));
+                productAuditRepository.deleteById(new ProductAuditId(revision.getEntity().getId(), prevRevision.getRequiredRevisionNumber()));
                 productRepository.save(prevProductEntity);
                 return productMapper.toDto(prevProductEntity);
             }
@@ -93,38 +97,21 @@ public class ProductService {
                 Revision<Long, ProductEntity> revision = productRepository.findLastChangeRevision(productNotification.getProduct()).orElse(null);
                 ProductEntity productEntity = revision != null ? revision.getEntity() : null;
                 if (syncNeeded(productEntity, productNotification)) {
+                    LocalDateTime currentDate = localDateTimeService.getCurrentDate();
                     ProductAuditEntity productAuditEntity = productAuditRepository.findById(new ProductAuditId(revision.getEntity().getId(), revision.getRequiredRevisionNumber())).orElse(null);
                     if (productAuditEntity != null) {
-                        LocalDateTime currentDate = localDateTimeService.getCurrentDate();
                         productAuditEntity.setEndDate(currentDate);
                         productAuditRepository.save(productAuditEntity);
-
-                        productEntity.setTariff(productNotification.getTariff());
-                        productEntity.setTariffVersion(productNotification.getTariffVersion());
-                        productEntity.setVersion(productEntity.getVersion() + 1);
-                        productEntity.setStartDate(currentDate);
-                        productEntityList.add(productEntity);
                     }
+                    productEntity.setTariff(productNotification.getTariff());
+                    productEntity.setTariffVersion(productNotification.getTariffVersion());
+                    productEntity.setVersion(productEntity.getVersion() + 1);
+                    productEntity.setStartDate(currentDate);
+                    productEntityList.add(productEntity);
                 }
             }
             productRepository.saveAll(productEntityList);
         }
-    }
-
-    private ProductEntity findCurrentVersion(UUID id) {
-        Revision<Long, ProductEntity> revision = productRepository.findLastChangeRevision(id).orElse(null);
-        return revision != null ? revision.getEntity() : null;
-    }
-
-    private Collection<ProductEntity> findPreviousVersions(UUID id) {
-        Revisions<Long, ProductEntity> revisions = productRepository.findRevisions(id);
-        Long lastVersion = revisions.getLatestRevision().getEntity().getVersion();
-        return revisions.stream().map(Revision::getEntity).filter(p -> !Objects.equals(p.getVersion(), lastVersion)).toList();
-    }
-
-    private ProductEntity findVersionForDate(UUID id, LocalDateTime date) {
-        Revision<Long, ProductEntity> revision = productRepository.findRevisions(id).stream().filter(r -> validDate(date, r.getEntity().getStartDate(), r.getEntity().getEndDate())).findFirst().orElse(null);
-        return revision != null ? revision.getEntity() : null;
     }
 
     private boolean syncNeeded(ProductEntity productEntity, ProductNotification productNotification) {
