@@ -20,12 +20,12 @@ public class ProductEntity {
     @Id
     @Column(name = "id", nullable = false)
     private UUID id;
-    @Column(name = "name")
+    @Column(name = "name", nullable = false)
     private String name;
     @Enumerated(EnumType.STRING)
-    @Column(name = "type")
+    @Column(name = "type", nullable = false)
     private Product.ProductType type;
-    @Column(name = "start_date")
+    @Column(name = "start_date", nullable = false)
     private LocalDateTime startDate;
     @Column(name = "end_date")
     private LocalDateTime endDate;
@@ -35,11 +35,16 @@ public class ProductEntity {
     private UUID tariff;
     @Column(name = "tariff_version")
     private Long tariffVersion;
-    @Column(name = "author")
+    @Column(name = "author", nullable = false)
     private UUID author;
     @Id
     @Column(name = "version", nullable = false)
     private Long version;
-    @Column(name = "deleted")
-    private boolean deleted;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "state", nullable = false)
+    private State state;
+
+    public enum State {
+        ACTIVE, INACTIVE, DELETED
+    }
 }
