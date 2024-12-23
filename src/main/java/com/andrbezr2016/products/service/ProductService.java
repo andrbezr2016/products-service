@@ -88,8 +88,8 @@ public class ProductService {
     @Transactional
     public void syncTariff(Collection<ProductNotification> productNotificationCollection) {
         if (CollectionUtils.isNotEmpty(productNotificationCollection)) {
-            List<ProductEntity> productEntityList = new ArrayList<>();
             for (ProductNotification productNotification : productNotificationCollection) {
+                List<ProductEntity> productEntityList = new ArrayList<>();
                 ProductEntity productEntity = findLastVersion(productNotification.getProduct());
                 if (syncNeeded(productEntity, productNotification)) {
                     ProductEntity newProductEntity = productMapper.copyEntity(productEntity);
@@ -106,9 +106,9 @@ public class ProductService {
                     newProductEntity.setVersion(newProductEntity.getVersion() + 1);
                     newProductEntity.setState(newProductEntity.getState());
                     productEntityList.add(newProductEntity);
+                    productRepository.saveAll(productEntityList);
                 }
             }
-            productRepository.saveAll(productEntityList);
         }
     }
 

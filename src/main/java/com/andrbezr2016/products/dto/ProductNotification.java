@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @NoArgsConstructor
@@ -13,7 +14,8 @@ import java.util.UUID;
 @ToString
 public class ProductNotification {
 
-    UUID tariff;
-    Long tariffVersion;
-    UUID product;
+    private UUID tariff;
+    private Long tariffVersion;
+    private UUID product;
+    private LocalDateTime startDate;
 }
