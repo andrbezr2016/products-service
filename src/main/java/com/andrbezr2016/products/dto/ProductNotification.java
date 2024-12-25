@@ -1,9 +1,6 @@
 package com.andrbezr2016.products.dto;
 
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -12,6 +9,7 @@ import java.util.UUID;
 @Setter
 @Getter
 @ToString
+@EqualsAndHashCode
 public class ProductNotification {
 
     private UUID tariff;

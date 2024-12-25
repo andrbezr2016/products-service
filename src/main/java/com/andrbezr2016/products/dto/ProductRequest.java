@@ -1,9 +1,6 @@
 package com.andrbezr2016.products.dto;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import java.util.UUID;
 
@@ -11,6 +8,7 @@ import java.util.UUID;
 @Getter
 @Builder
 @ToString
+@EqualsAndHashCode
 public class ProductRequest {
 
     private String name;

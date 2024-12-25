@@ -1,0 +1,3 @@
+spring:
+  datasource:
+    url: ${POSTGRES_PATH:jdbc:tc:postgresql:15://localhost:5555/products}
