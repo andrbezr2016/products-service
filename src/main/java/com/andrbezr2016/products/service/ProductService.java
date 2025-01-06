@@ -23,11 +23,6 @@ public class ProductService {
     private final ProductMapper productMapper;
     private final CurrentDateService currentDateService;
 
-    public boolean checkProduct(UUID id) {
-        ProductEntity productEntity = findCurrentVersion(id);
-        return productEntity != null;
-    }
-
     public Product getCurrentVersion(UUID id) {
         ProductEntity productEntity = findCurrentVersion(id);
         return productMapper.toDto(productEntity);

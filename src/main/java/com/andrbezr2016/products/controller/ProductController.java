@@ -20,12 +20,6 @@ public class ProductController {
 
     private final ProductService productService;
 
-    @GetMapping("/{id}/checkProduct")
-    public Boolean checkProduct(@PathVariable("id") UUID id) {
-        log.info("Check product with id exists: {}", id);
-        return productService.checkProduct(id);
-    }
-
     @GetMapping("/{id}/getCurrentVersion")
     public Product getCurrentVersion(@PathVariable("id") UUID id) {
         log.info("Get current version of product with id: {}", id);
