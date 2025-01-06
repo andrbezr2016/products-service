@@ -23,6 +23,11 @@ public class ProductService {
     private final ProductMapper productMapper;
     private final CurrentDateService currentDateService;
 
+    public boolean checkProduct(UUID id) {
+        ProductEntity productEntity = findCurrentVersion(id);
+        return productEntity != null;
+    }
+
     public Product getCurrentVersion(UUID id) {
         ProductEntity productEntity = findCurrentVersion(id);
         return productMapper.toDto(productEntity);
@@ -91,22 +96,34 @@ public class ProductService {
             for (ProductNotification productNotification : productNotificationCollection) {
                 List<ProductEntity> productEntityList = new ArrayList<>();
                 ProductEntity productEntity = findLastVersion(productNotification.getProduct());
-                if (syncNeeded(productEntity, productNotification)) {
-                    ProductEntity newProductEntity = productMapper.copyEntity(productEntity);
+                if (productEntity != null) {
+                    final boolean isTariffReplaceNeeded = !productNotification.isToClean() && (!Objects.equals(productEntity.getTariff(), productNotification.getTariff())
+                            || !Objects.equals(productEntity.getTariffVersion(), productNotification.getTariffVersion()));
+                    final boolean isTariffCleanNeeded = productNotification.isToClean() && Objects.equals(productEntity.getTariff(), productNotification.getTariff())
+                            && Objects.equals(productEntity.getTariffVersion(), productNotification.getTariffVersion());
 
-                    LocalDateTime now = currentDateService.getCurrentDate();
-                    productEntity.setEndDate(now);
-                    productEntity.setState(ProductEntity.State.INACTIVE);
-                    productEntityList.add(productEntity);
+                    if (isTariffReplaceNeeded || isTariffCleanNeeded) {
+                        ProductEntity newProductEntity = productMapper.copyEntity(productEntity);
 
-                    newProductEntity.setTariff(productNotification.getTariff());
-                    newProductEntity.setTariffVersion(productNotification.getTariffVersion());
-                    newProductEntity.setStartDate(now);
-                    newProductEntity.setEndDate(null);
-                    newProductEntity.setVersion(newProductEntity.getVersion() + 1);
-                    newProductEntity.setState(newProductEntity.getState());
-                    productEntityList.add(newProductEntity);
-                    productRepository.saveAll(productEntityList);
+                        LocalDateTime now = currentDateService.getCurrentDate();
+                        productEntity.setEndDate(now);
+                        productEntity.setState(ProductEntity.State.INACTIVE);
+                        productEntityList.add(productEntity);
+
+                        if (isTariffReplaceNeeded) {
+                            newProductEntity.setTariff(productNotification.getTariff());
+                            newProductEntity.setTariffVersion(productNotification.getTariffVersion());
+                        } else {
+                            newProductEntity.setTariff(null);
+                            newProductEntity.setTariffVersion(null);
+                        }
+                        newProductEntity.setStartDate(now);
+                        newProductEntity.setEndDate(null);
+                        newProductEntity.setVersion(newProductEntity.getVersion() + 1);
+                        newProductEntity.setState(newProductEntity.getState());
+                        productEntityList.add(newProductEntity);
+                        productRepository.saveAll(productEntityList);
+                    }
                 }
             }
         }
@@ -126,11 +143,5 @@ public class ProductService {
 
     private ProductEntity findVersionForDate(UUID id, LocalDateTime date) {
         return productRepository.findVersionForDateById(id, date).orElse(null);
-    }
-
-    private boolean syncNeeded(ProductEntity productEntity, ProductNotification productNotification) {
-        return productEntity != null
-                && (!Objects.equals(productEntity.getTariff(), productNotification.getTariff())
-                || !Objects.equals(productEntity.getTariffVersion(), productNotification.getTariffVersion()));
     }
 }

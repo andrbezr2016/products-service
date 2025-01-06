@@ -145,15 +145,17 @@ class ProductControllerTest {
     void syncTariffTest() throws Exception {
         ProductNotification productNotification1 = new ProductNotification();
         productNotification1.setProduct(UUID.fromString("a8ddef4d-5942-42b8-9354-41a715e03b56"));
-        productNotification1.setTariff(null);
-        productNotification1.setTariffVersion(null);
+        productNotification1.setTariff(UUID.randomUUID());
+        productNotification1.setTariffVersion(1L);
         productNotification1.setStartDate(LocalDateTime.now());
+        productNotification1.setToClean(true);
 
         ProductNotification productNotification2 = new ProductNotification();
         productNotification2.setProduct(UUID.fromString("a929d899-1f06-418d-a002-77f4d6584676"));
         productNotification2.setTariff(UUID.randomUUID());
         productNotification2.setTariffVersion(1L);
         productNotification2.setStartDate(LocalDateTime.now());
+        productNotification1.setToClean(false);
 
         mvc.perform(post(SYNC_TARIFF).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(List.of(productNotification1, productNotification2))))
                 .andExpect(status().isOk());
@@ -161,8 +163,8 @@ class ProductControllerTest {
         ProductEntity productEntity1 = productRepository.findLastVersionById(productNotification1.getProduct()).orElse(null);
         assertNotNull(productEntity1);
         assertEquals(productNotification1.getProduct(), productEntity1.getId());
-        assertNull(productEntity1.getTariff());
-        assertNull(productEntity1.getTariffVersion());
+        assertEquals(productNotification1.getTariff(), productEntity1.getTariff());
+        assertEquals(productNotification1.getTariffVersion(), productEntity1.getTariffVersion());
         assertEquals(ProductEntity.State.ACTIVE, productEntity1.getState());
         assertEquals(1L, productEntity1.getVersion());
 
