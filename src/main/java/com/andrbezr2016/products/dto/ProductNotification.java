@@ -16,5 +16,4 @@ public class ProductNotification {
     private Long tariffVersion;
     private UUID product;
     private LocalDateTime startDate;
-    private boolean toClean;
 }

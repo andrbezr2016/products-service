@@ -148,14 +148,12 @@ class ProductControllerTest {
         productNotification1.setTariff(UUID.randomUUID());
         productNotification1.setTariffVersion(1L);
         productNotification1.setStartDate(LocalDateTime.now());
-        productNotification1.setToClean(true);
 
         ProductNotification productNotification2 = new ProductNotification();
         productNotification2.setProduct(UUID.fromString("a929d899-1f06-418d-a002-77f4d6584676"));
         productNotification2.setTariff(UUID.randomUUID());
         productNotification2.setTariffVersion(1L);
         productNotification2.setStartDate(LocalDateTime.now());
-        productNotification1.setToClean(false);
 
         mvc.perform(post(SYNC_TARIFF).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(List.of(productNotification1, productNotification2))))
                 .andExpect(status().isOk());

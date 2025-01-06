@@ -91,37 +91,30 @@ public class ProductService {
             for (ProductNotification productNotification : productNotificationCollection) {
                 List<ProductEntity> productEntityList = new ArrayList<>();
                 ProductEntity productEntity = findLastVersion(productNotification.getProduct());
-                if (productEntity != null) {
-                    final boolean isTariffReplaceNeeded = !productNotification.isToClean() && (!Objects.equals(productEntity.getTariff(), productNotification.getTariff())
-                            || !Objects.equals(productEntity.getTariffVersion(), productNotification.getTariffVersion()));
-                    final boolean isTariffCleanNeeded = productNotification.isToClean() && Objects.equals(productEntity.getTariff(), productNotification.getTariff())
-                            && Objects.equals(productEntity.getTariffVersion(), productNotification.getTariffVersion());
+                if (isSyncNeeded(productEntity, productNotification)) {
+                    ProductEntity newProductEntity = productMapper.copyEntity(productEntity);
 
-                    if (isTariffReplaceNeeded || isTariffCleanNeeded) {
-                        ProductEntity newProductEntity = productMapper.copyEntity(productEntity);
+                    LocalDateTime now = currentDateService.getCurrentDate();
+                    productEntity.setEndDate(now);
+                    productEntity.setState(ProductEntity.State.INACTIVE);
+                    productEntityList.add(productEntity);
 
-                        LocalDateTime now = currentDateService.getCurrentDate();
-                        productEntity.setEndDate(now);
-                        productEntity.setState(ProductEntity.State.INACTIVE);
-                        productEntityList.add(productEntity);
-
-                        if (isTariffReplaceNeeded) {
-                            newProductEntity.setTariff(productNotification.getTariff());
-                            newProductEntity.setTariffVersion(productNotification.getTariffVersion());
-                        } else {
-                            newProductEntity.setTariff(null);
-                            newProductEntity.setTariffVersion(null);
-                        }
-                        newProductEntity.setStartDate(now);
-                        newProductEntity.setEndDate(null);
-                        newProductEntity.setVersion(newProductEntity.getVersion() + 1);
-                        newProductEntity.setState(newProductEntity.getState());
-                        productEntityList.add(newProductEntity);
-                        productRepository.saveAll(productEntityList);
-                    }
+                    newProductEntity.setTariff(productNotification.getTariff());
+                    newProductEntity.setTariffVersion(productNotification.getTariffVersion());
+                    newProductEntity.setStartDate(now);
+                    newProductEntity.setEndDate(null);
+                    newProductEntity.setVersion(newProductEntity.getVersion() + 1);
+                    newProductEntity.setState(newProductEntity.getState());
+                    productEntityList.add(newProductEntity);
+                    productRepository.saveAll(productEntityList);
                 }
             }
         }
+    }
+
+    private boolean isSyncNeeded(ProductEntity productEntity, ProductNotification productNotification) {
+        return productEntity != null && (!Objects.equals(productEntity.getTariff(), productNotification.getTariff())
+                || !Objects.equals(productEntity.getTariffVersion(), productNotification.getTariffVersion()));
     }
 
     private ProductEntity findCurrentVersion(UUID id) {
