@@ -90,7 +90,7 @@ public class ProductService {
         if (CollectionUtils.isNotEmpty(productNotificationCollection)) {
             for (ProductNotification productNotification : productNotificationCollection) {
                 List<ProductEntity> productEntityList = new ArrayList<>();
-                ProductEntity productEntity = findLastVersion(productNotification.getProduct());
+                ProductEntity productEntity = findCurrentVersion(productNotification.getProduct());
                 if (isSyncNeeded(productEntity, productNotification)) {
                     ProductEntity newProductEntity = productMapper.copyEntity(productEntity);
 
