@@ -20,12 +20,17 @@ public interface ProductRepository extends JpaRepository<ProductEntity, ProductI
     @Transactional
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("FROM ProductEntity WHERE id = :id AND state = 'ACTIVE'")
-    Optional<ProductEntity> findCurrentVersionById(UUID id);
+    Optional<ProductEntity> findActiveVersionById(UUID id);
+
+    @Transactional
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("FROM ProductEntity WHERE id = :id AND state <> 'INACTIVE'")
+    Optional<ProductEntity> findLastVersionById(UUID id);
 
     @Transactional
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("FROM ProductEntity WHERE (id, version) IN (SELECT id, MAX(version) FROM ProductEntity WHERE id = :id GROUP BY id)")
-    Optional<ProductEntity> findLastVersionById(UUID id);
+    Optional<ProductEntity> findMaxVersionById(UUID id);
 
     @Query("FROM ProductEntity WHERE id = :id AND state = 'INACTIVE' ORDER BY version DESC")
     List<ProductEntity> findAllPreviousVersionsById(UUID id);
