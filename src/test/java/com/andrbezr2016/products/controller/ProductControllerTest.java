@@ -118,7 +118,7 @@ class ProductControllerTest {
         mvc.perform(delete(DELETE_PRODUCT, id))
                 .andExpect(status().isOk());
 
-        ProductEntity deletedProductEntity = productRepository.findCurrentVersionById(id).orElse(null);
+        ProductEntity deletedProductEntity = productRepository.findActiveVersionById(id).orElse(null);
         assertNull(deletedProductEntity);
 
         deletedProductEntity = productRepository.findLastVersionById(id).orElse(null);
